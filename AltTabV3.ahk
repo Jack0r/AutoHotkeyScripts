@@ -48,14 +48,37 @@ NOTE: Stroke-It (and maybe other mouse gesture programs) can cause the context m
 LATEST_VERSION_CHANGES = ; Gui, 98
 (LTrim0
 
+:taskpaper:
+
 TO DO (maybe):
-  settings window
-  save other settings between restarts
-  include a filter for docked windows to be displayed in alt-tab or not (ie a tab for docked windows) - perhaps alter title? e.g. DOCKED***
-  stick items to top or bottom of list
-    use listview insert command to place windows at specific locations in list?
+- include a filter for docked windows to be displayed in alt-tab or not (ie a tab for docked windows) - perhaps alter title? e.g. DOCKED***
+- stick items to top or bottom of list
+- use listview insert command to place windows at specific locations in list?
+- get best practices with compiz and other compositing programs for other ways of dealing with alt tab
+- develop more keyboard shortcuts like those used with VistaSwitcher
+- sort the window list with shortcuts
+- remove docking functionality
+- incorporate window images based on AeroThumbnails library
+- get rid of a lot of the fluff and unused code
+- get on forums and post to people to try to get more cooperation
+- make it work with Win8 apps
 
 LATEST VERSION CHANGES:
+
+since 09-10-13:
+- fix close app from reopening the all window list if closing app from Group
+- sometimes windows don't come to the front (outlook)
+
+since 08-29-13:
+- return passing window to previous zorder
+
+since 08-08-13:
+- remove a majority of UI
+- add EXE only mode to cycle between current application windows
+- added coloring for max
+- get color schemes to work on startup 
+- bring focused window to the font when cycling
+
 since 25-04-06:
   +: Groups of windows are shown in tabs - they can be re-arranged by drag-and-drop.
   +: Settings tab.
@@ -83,10 +106,12 @@ since 25-04-06:
     Use_Large_Icons =1 ; 0 = small icons, 1 = large icons in listview
 
   ; Fonts
-    Font_Size =12
-    Font_Size_Tab =8
-    Font_Type_Tab =Courier New
-    Font_Type =Arial
+    Font_Size=11
+    Font_Color=e9ded3
+    Font_Style=Bold
+    Font_Size_Tab =9
+    Font_Type_Tab =Consolas
+    Font_Type =Segoe UI
 
   ; Position
     Gui_x =Center
@@ -96,7 +121,7 @@ since 25-04-06:
     Height_Max_Modifier =0.92 ; multiplier for screen height (e.g. 0.92 = 92% of screen height max )
 
   ; Width
-    Listview_Width := A_ScreenWidth * 0.55
+    Listview_Width := A_ScreenWidth * 0.40
     SB_Width := Listview_Width / 4 ; StatusBar section sizes
     Exe_Width_Max := Listview_Width / 5 ; Exe column max width
 
@@ -122,21 +147,21 @@ since 25-04-06:
     Small_to_Large_Ratio =1.6 ; height of small rows compared to large rows
 
   ; Colours in RGB hex
-    Tab_Colour =00ED00
-    ;Tab_Colour =C4C5FB
-    Listview_Colour =FFFFFF ; does not need converting as only used for background
-    ;Listview_Colour =E1E2FD ; does not need converting as only used for background
-    StatusBar_Background_Colour =C4C5FB
+    Tab_Colour =1a1a1a
+    Listview_Colour =1c1b1a ; does not need converting as only used for background
+    StatusBar_Background_Colour =998899
     
   ; convert colours to correct format for listview color functions:
+    Listview_Colour_Max_Text :=       RGBtoBGR("0xffffff") ; highlight minimised windows
+    Listview_Colour_Max_Back :=       RGBtoBGR("0x000000")
     Listview_Colour_Min_Text :=       RGBtoBGR("0x000000") ; highlight minimised windows
-    Listview_Colour_Min_Back :=       RGBtoBGR("0xC2C6FC")
+    Listview_Colour_Min_Back :=       RGBtoBGR("0xffa724")
     Listview_Colour_OnTop_Text :=     RGBtoBGR("0x000000") ; highlight alwaysontop windows
-    Listview_Colour_OnTop_Back :=     RGBtoBGR("0x8079FB")
-    Listview_Colour_Dialog_Text :=    RGBtoBGR("0x000000")
+    Listview_Colour_OnTop_Back :=     RGBtoBGR("0xff2c4b")
+    Listview_Colour_Dialog_Text :=    RGBtoBGR("0xd9cec3")
     Listview_Colour_Dialog_Back :=    RGBtoBGR("0xFB5959")
-    Listview_Colour_Selected_Text :=  RGBtoBGR("0xFFFFFF")
-    Listview_Colour_Selected_Back :=  RGBtoBGR("0x007100")
+    Listview_Colour_Selected_Text :=  RGBtoBGR("0xffffff")
+    Listview_Colour_Selected_Back :=  RGBtoBGR("0x0a9dff")
     Listview_Colour_Not_Responding_Text := RGBtoBGR("0xFFFFFF")
     Listview_Colour_Not_Responding_Back := RGBtoBGR("0xFF0000")
 
@@ -148,6 +173,7 @@ since 25-04-06:
 #Persistent
 #InstallKeybdHook
 #InstallMouseHook
+#NoTrayIcon
 Process Priority,,High
 SetWinDelay, -1
 SetBatchLines, -1
@@ -189,21 +215,25 @@ Viewed_Window_List =
 Col_Title_List =#| |Window|Exe|View|Top|Status
 StringSplit, Col_Title, Col_Title_List,| ; create list of listview header titles
 
-~WheelUp::
-  Gosub, ~WheelDown
-  If (Scroll_Over_wID = TaskBar_ID)
-    Loop, 2
-      Gosub, Alt_Shift_Tab
+#If (MouseWID() == TaskBar_ID)
+WheelUp::
+  Gosub, Single_Key_Show_Alt_Tab
+  Hotkey, %Alt_Hotkey%%Use_AND_Symbol%Mbutton, ListView_Destroy, %state% UseErrorLevel ; select the window if launched from the taskbar
+  Loop, 2
+  {
+    Gosub, Alt_Shift_Tab
+  }
 Return
 
-~WheelDown::
-  MouseGetPos, JUNK, JUNK, Scroll_Over_wID
-    If ! (Scroll_Over_wID = TaskBar_ID)
-      Return
+WheelDown::
+  ; GetMouseTaskButton(win_id)
+  ; CoordMode, tooltip, screen
+  ;   tooltip % win_id, 0, 0
     Gosub, Single_Key_Show_Alt_Tab
     Hotkey, %Alt_Hotkey%%Use_AND_Symbol%Mbutton, ListView_Destroy, %state% UseErrorLevel ; select the window if launched from the taskbar
 Return
 
+#If
 
 ;========================================================================================================
 
@@ -234,14 +264,14 @@ Return
 
 
 Alt_Tab: ; alt-tab hotkey
-  Alt_Tab_Common_Function("Alt_Tab")
+  Alt_Tab_Common_Function(1)
 Return
 
 Alt_Shift_Tab: ; alt-shift-tab hotkey
-  Alt_Tab_Common_Function("Alt_Shift_Tab")
+  Alt_Tab_Common_Function(-1)
 Return
 
-Alt_Tab_Common_Function(Key) ; Key = "Alt_Tab" or "Alt_Shift_Tab"
+Alt_Tab_Common_Function(dir) ; dir = "Alt_Tab" or "Alt_Shift_Tab"
 {
   Global
   If Display_List_Shown =0
@@ -251,32 +281,102 @@ Alt_Tab_Common_Function(Key) ; Key = "Alt_Tab" or "Alt_Shift_Tab"
     Gosub, Display_List
     Gosub, Alt_Tab_Common__Check_auto_switch_icon_sizes ; limit gui height / auto-switch icon sizes
     Gosub, Alt_Tab_Common__Highlight_Active_Window
+    PrevRowText:=
+
+    ; define background GUI to dim all active applications
+    SysGet, Width, 78
+    SysGet, Height, 79
+
+    SysGet, X0, 76
+    SysGet, Y0, 77
+
+    Gui, 4: +LastFound -Caption +ToolWindow
+    Gui, 4: Color, Black
+    Gui, 4: Show, Hide
+    WinSet, Transparent, 50
+    Gui, 4: Show, NA x%X0% y%Y0% w%Width% h%Height%
+
     If ( GetKeyState(Alt_Hotkey2, "P") or GetKeyState(Alt_Hotkey2)) ; Alt key still pressed, else gui not shown
       {
-      Gui, 1: Show, AutoSize x%Gui_x% y%Gui_y%, Alt-Tab Replacement
+      Gui_vx := Gui_CenterX()
+      Gui, 1: Show, AutoSize x%Gui_vx% y%Gui_y%, Alt-Tab Replacement
       Hotkeys_Toggle_Temp_Hotkeys("On") ; (state = "On" or "Off") ; ensure hotkeys are on
       }
     }
-  Selected_Row := LV_GetNext(0, "F")
-  If Key =Alt_Tab
-    {
-    Selected_Row += 1
+
+    Selected_Row := LV_GetNext(0, "F")
+    Selected_Row += dir
     If (Selected_Row > Window_Found_Count)
       Selected_Row =1
-    }
-  Else If Key =Alt_Shift_Tab
-    {
-    Selected_Row -= 1
     If Selected_Row < 1
       Selected_Row := Window_Found_Count
+
+    ; Loop through all windows to get them to update the color
+    Loop %Window_Found_Count%
+    {
+    LV_Modify(A_Index, "Focus Select Vis") ; get selected row and ensure selection is visible
     }
-  LV_Modify(Selected_Row, "Focus Select Vis") ; get selected row and ensure selection is visible
+    LV_Modify(Selected_Row, "Focus Select Vis") ; get selected row and ensure selection is visible
+
+
+    ; Bring the focused lines window to the front
+    Get__Selected_Row_and_RowText()
+    Gui_wid := Window%RowText%
+
+    WinGet, OldExStyle, ExStyle, ahk_id %Gui_wid%
+
+    PPrevRowText:=(PrevRowText>RowText)?PrevRowText+1:RowText+1
+
+    ; Put previous window back in window stack
+    DllCall("SetWindowPos", "uint", Window%PrevRowText%, "uint", Window%PPrevRowText%
+        , "int", 0, "int", 0, "int", 0, "int", 0
+        , "uint", 0x13)  ; NOSIZE|NOMOVE|NOACTIVATE (0x1|0x2|0x10)
+    
+    ; DllCall("SetForegroundWindow", "uint", Gui_wid)
+    WinSet, AlwaysOnTop, On , ahk_id %Gui_wid%
+    
+    WinSet, Top, , ahk_id %Gui_wid%
+    WinSet, AlwaysOnTop, Off , ahk_id %Gui_wid%
+    
+    WinGet, MinMax, MinMax, ahk_id %Gui_wid%
+
+
+    ; Tooltip, %MinMax%
+    If MinMax = -1
+    {
+    WinGetPos, minX, minY, minW, minH, ahk_id %Gui_wid%
+    Coordmode, Tooltip, Screen
+; 28, 29	SM_CXMIN, SM_CYMIN: Minimum width and height of a window, in pixels.
+; 57, 58	SM_CXMINIMIZED, SM_CYMINIMIZED: Dimensions of a minimized window, in pixels.
+    Sysget, MINX, 57, ahk_id %Gui_wid%
+    ; Tooltip minX %minX% minY %minY% minW %minW% minH %minH% ahk_id %Gui_wid%, 0, 0
+    }
+
+
+    WinSet, Top,, ahk_id %Gui_wid%
+    ; CoordMode, Tooltip, Screen
+
+
+    ; Tooltip, % RowText . ":" . Title%RowText% . "|" . PrevRowText . ":" . Title%PrevRowText%, 0, 0
+    
+    ; PPrevRowText:=RowText
+    PrevRowText:=RowText
+
+    ; Sometimes you lose the window
+    WinSet, AlwaysOnTop, On, Alt-Tab Replacement
+
+    ; Check if AlwaysOnTop status changed.   
+    WinGet, ExStyle, ExStyle, ahk_id %Gui_wid%
+    if (OldExStyle ^ ExStyle) & 0x8
+        WinSet, AlwaysOnTop, Toggle, ahk_id %Gui_wid%
+
+
   SetTimer, Check_Alt_Hotkey2_Up, 30
 
-  GuiControl, Focus, Listview1 ; workaround for gui tab bug - gosub not activated when already activated button clicked on again
+  ; GuiControl, Focus, Listview1 ; workaround for gui tab bug - gosub not activated when already activated button clicked on again
 
-  Gosub, SB_Update__ProcessCPU
-  SetTimer, SB_Update__ProcessCPU, 1000
+  ; Gosub, SB_Update__ProcessCPU
+  ; SetTimer, SB_Update__ProcessCPU, 1000
   Return
 
   Alt_Tab_Common__Check_auto_switch_icon_sizes: ; limit gui height / auto-switch icon sizes
@@ -374,6 +474,7 @@ Check_Alt_Hotkey2_Up:
     Gosub, ListView_Destroy
 Return
 
+; LAlt & RAlt::Reload
 
 ;========================================================================================================
 
@@ -389,20 +490,20 @@ Display_List:
     Gui, 1: Color, %Tab_Colour% ; i.e. border/background (default = 404040) ; barely visible - right and bottom sides only
     Gui, 1: Margin, 4, 4
     ; Tab stuff
-    Gui, 1: Font, s%Font_Size_Tab%, %Font_Type_Tab%
-    ;Gui, 1: Add, Tab2, vGui1_Tab HWNDhw_Gui1_Tab Background w%Gui1_Tab__width% -0x200, %Group_List% ; -0x200 = ! TCS_MULTILINE
-    ;Gui, 1: Tab, %Group_Active%,, Exact ; Future controls are owned by this tab
-    ;Gui, 1: Add, StatusBar, Background%StatusBar_Background_Colour% ; add before changing font
-    Gui, 1: Font, s%Font_Size%, %Font_Type%
-    Gui, 1: Add, ListView, w%Listview_Width% AltSubmit -Hdr -Multi NoSort Background%Listview_Colour% Count10 gListView_Event vListView1 HWNDhw_LV_ColorChange,%Col_Title_List%
-    ;Gui, 1: Add, ListView, x-1 y+-4 w%Listview_Width% AltSubmit -Multi NoSort Background%Listview_Colour% Count10 gListView_Event vListView1 HWNDhw_LV_ColorChange,%Col_Title_List%
+    Gui, 1: Font, s%Font_Size_Tab% , %Font_Type_Tab%
+    ; Gui, 1: Add, Tab2, vGui1_Tab HWNDhw_Gui1_Tab Background w%Gui1_Tab__width% -0x200, %Group_List% ; -0x200 = ! TCS_MULTILINE
+    ; Gui, 1: Tab, %Group_Active%,, Exact ; Future controls are owned by this tab
+    ; Gui, 1: Add, StatusBar, Background%StatusBar_Background_Colour% ; add before changing font
+    Gui, 1: Font, s%Font_Size% c%Font_Color% %Font_Style%, %Font_Type%
+    ;; Gui, 1: Add, ListView, w%Listview_Width% AltSubmit -Hdr -Multi NoSort Background%Listview_Colour% Count10 gListView_Event vListView1 HWNDhw_LV_ColorChange,%Col_Title_List%
+    Gui, 1: Add, ListView, x-1 y+-4 w%Listview_Width% AltSubmit -Multi NoSort Background%Listview_Colour% Count10 gListView_Event vListView1 HWNDhw_LV_ColorChange,%Col_Title_List%
     LV_ModifyCol(2, "Integer") ; sort hidden column 2 as numbers
-    SB_SetParts(SB_Width, SB_Width, SB_Width)
-    ;Gosub, SB_Update__CPU
-    ;SetTimer, SB_Update__CPU, 1000
+    ; SB_SetParts(SB_Width, SB_Width, SB_Width)
+    ; Gosub, SB_Update__CPU
+    ; SetTimer, SB_Update__CPU, 1000
     }
-  GuiControl,, Gui1_Tab, |%Group_List% ; update in case of changes
-  GuiControl, ChooseString, Gui1_Tab, %Group_Active%
+  ; GuiControl,, Gui1_Tab, |%Group_List% ; update in case of changes
+  ; GuiControl, ChooseString, Gui1_Tab, %Group_Active%
 
   ImageListID1 := IL_Create(10,5,Use_Large_Icons_Current) ; Create an ImageList so that the ListView can display some icons
   LV_SetImageList(ImageListID1, 1) ; Attach the ImageLists to the ListView so that it can later display the icons
@@ -419,7 +520,8 @@ Display_List:
   Gosub, Gui_Resize_and_Position
   If Display_List_Shown =1 ; resize gui for updating listview
     {
-    Gui, 1: Show, AutoSize x%Gui_x% y%Gui_y%, Alt-Tab Replacement
+      Gui_vx := Gui_CenterX()
+    Gui, 1: Show, AutoSize x%Gui_vx% y%Gui_y%, Alt-Tab Replacement
     If Selected_Row >%Window_Found_Count% ; less windows now - select last one instead of default 1st row
       Selected_Row =%Window_Found_Count%
     LV_Modify(Selected_Row, "Focus Select Vis") ; select 1st entry since nothing selected
@@ -429,6 +531,7 @@ Return
 
 
 Display_List__Find_windows_and_icons:
+  WinGet, Cur_Exe_Name, ProcessName, A
   WinGet, Window_List, List ; Gather a list of running programs
 
   Window_Found_Count =0
@@ -442,19 +545,23 @@ Display_List__Find_windows_and_icons:
         Continue
 
     WinGet, es, ExStyle, ahk_id %wid%
+    WinGetClass, cla, ahk_id %wid%
     Parent := Decimal_to_Hex( DllCall( "GetParent", "uint", wid ) )
     WinGet, Style_parent, Style, ahk_id %Parent%
     Owner := Decimal_to_Hex( DllCall( "GetWindow", "uint", wid , "uint", "4" ) ) ; GW_OWNER = 4
     WinGet, Style_Owner, Style, ahk_id %Owner%
 
-    If (((es & WS_EX_TOOLWINDOW)  and !(Parent)) ; filters out program manager, etc
-        or ( !(es & WS_EX_APPWINDOW)
-          and (((Parent) and ((Style_parent & WS_DISABLED) =0)) ; These 2 lines filter out windows that have a parent or owner window that is NOT disabled -
-            or ((Owner) and ((Style_Owner & WS_DISABLED) =0))))) ; NOTE - some windows result in blank value so must test for zero instead of using NOT operator!
-      continue
-
     WinGet, Exe_Name, ProcessName, ahk_id %wid%
     WinGetClass, Win_Class, ahk_id %wid%
+
+    If (((es & WS_EX_TOOLWINDOW)  and !(Parent)) ; filters out program manager, etc
+	or (es =0x00200008)
+	; or (Win_Class ="Windows.U.Core.CoreWindow")
+	or ( !(es & WS_EX_APPWINDOW)
+	     and (((Parent) and ((Style_parent & WS_DISABLED) =0)) ; These 2 lines filter out windows that have a parent or owner window that is NOT disabled -
+		  or ((Owner) and ((Style_Owner & WS_DISABLED) =0))))) ; NOTE - some windows result in blank value so must test for zero instead of using NOT operator!
+	continue
+
     hw_popup := Decimal_to_Hex(DllCall("GetLastActivePopup", "uint", wid))
 
     ; CUSTOM GROUP FILTERING
@@ -479,6 +586,15 @@ Display_List__Find_windows_and_icons:
           or ((Custom_Group_Include_wid_temp !=1) and (Exclude_Not_In_List =1)))
         Continue
       }
+
+      ; If EXE group is used, only accept windows with the same executable as the current
+         If (Group_Active = "EXE")
+         {
+
+      Same_Exe_Include_wid_temp = ; initialise/reset
+      If (Cur_Exe_Name != Exe_Name) ; match current exe name
+        Continue
+     }
 
     Dialog =0 ; init/reset
     If (Parent and ! Style_parent)
@@ -539,6 +655,8 @@ Window__Store_attributes(Index, wid, ID_Parent) ; Index = Window_Found_Count, wi
       LV_ColorChange(Index, Listview_Colour_Dialog_Text, Listview_Colour_Dialog_Back)
     Else If OnTop%Index% =Top
       LV_ColorChange(Index, Listview_Colour_OnTop_Text, Listview_Colour_OnTop_Back)
+    Else If State%Index% =Max
+      LV_ColorChange(Index, Listview_Colour_Max_Text, Listview_Colour_Max_Back)
     Else If State%Index% =Min
       LV_ColorChange(Index, Listview_Colour_Min_Text, Listview_Colour_Min_Back)
 }
@@ -686,6 +804,7 @@ Get__Selected_Row_and_RowText()
 
 
 ListView_Event:
+Critical, 50
   If MButton_Clicked =1 ; closing a window so don't process events
     Return
   If A_GuiEvent =DoubleClick ; activate clicked window
@@ -1058,7 +1177,7 @@ Gui_Hotkeys:
     If (A_LoopField != "Settings")
   	   LV_Add("", A_LoopField, %A_LoopField%_Group_Hotkey)
   Gui, 2: Add, Button, x+10 yp+40 gGui_2_Group_Hotkey_Assign w170, Assign hotkey to selected group:
-  Gui, 2: Add, Hotkey, vGui_2_Group_Hotkey xp y+5, %Hotkey%
+  Gui, 2: Add, Edit, vGui_2_Group_Hotkey xp y+5, %Hotkey%
   Gui, 2: Add, Button, xp y+30 gGui_2_Group_Hotkey_Clear w170, Clear hotkey of selected group
   Gui, 2: Add, Text, xp y+30, ( Key: !=Alt, ^=Ctrl, +=Shift, #=Win )
   Gui, 2: Add, Text, xm+250, WARNING! No error checking for hotkeys - be careful what you choose! (Delete the .ini file to reset settings)
@@ -1518,8 +1637,8 @@ Gui_Window_Group_Delete:
   StringTrimLeft, Group_List, Group_List, 1 ; remove leading |
 
   Hotkey, % %A_ThisMenuItem%_Group_Hotkey, Off, UseErrorLevel
-  IniDelete, Alt_Tab_Settings.ini, Groups, %A_ThisMenuItem%
-  IniDelete, Alt_Tab_Settings.ini, Groups, %A_ThisMenuItem%_Group_Hotkey
+  IniDelete, %A_ScriptDir%\Alt_Tab_Settings.ini, Groups, %A_ThisMenuItem%
+  IniDelete, %A_ScriptDir%\Alt_Tab_Settings.ini, Groups, %A_ThisMenuItem%_Group_Hotkey
   Gosub, Alt_Esc_Check_Alt_State ; hides alt-tab gui - shows again if alt still pressed
 Return
 
@@ -1535,20 +1654,12 @@ Group_Hotkey: ; from loading ini file - determine hotkey behaviour based on curr
         Group_Active=%A_LoopField% ; load custom group
         Gosub, Custom_Group__make_array_of_contents
         }
+
       ; check if currently active window is in the newly loaded group, else switch to 1st
       Gosub, Single_Key_Show_Alt_Tab ; show list to generate updated variables to check
       Viewed_Window_List .="|" Active_ID
-      Loop, %Window_Found_Count% ; abort switching and start to cycle through windows in list next
-        {
-        If (! InStr(Viewed_Window_List, Window%A_Index%) or Window_Found_Count <=1)
-          {
+        If (Window_Found_Count <=1)
           Gosub, ListView_Destroy
-          WinActivate, % "ahk_id" Window%A_Index%
-          If A_Index =%Window_Found_Count%
-            Viewed_Window_List = ; viewed all windows so reset list
-          Break
-          }
-        }
       Break
       }
     }
@@ -1660,10 +1771,11 @@ Return
 
 
 Key_Pressed_1st_Letter:
+; Tooltip %A_EventInfo%
   Key_Pressed_ASCII =%A_EventInfo%
   Get__Selected_Row_and_RowText()
-	;TrayTip, ,%Key_Pressed_ASCII%
-  If Key_Pressed_ASCII =93 ; Alt+Apps key - context menu
+
+  If Key_Pressed_ASCII =13 ; Alt+Apps key - context menu
     {
     Gosub, GuiContextMenu
     Return
@@ -1674,30 +1786,14 @@ Key_Pressed_1st_Letter:
     GoSub Alt_Tab
     Return
     }
-
-  If (Key_Pressed_ASCII =17) ; likaci mod ctrl17, Caps40
-    {
-	Sleep 50
-	GetKeyState, AltIsDown, Alt, P
-	if AltIsDown<>D ;likaci mod  this is a fuck thing ,if don't Check the state of alt will double operated
-		Return
-    GoSub Alt_Shift_Tab
-    Return
-    }
-
   If (Key_Pressed_ASCII =38) ; Up arrow
     {
     GoSub Alt_Shift_Tab
     Return
     }
 
-  If (Key_Pressed_ASCII =none) ; todo Show desktop
-    {
-	WinActivate, ahk_class Progman
-    Return
-    }
   ; \ key - close window
-  If (Key_Pressed_ASCII =92 or Key_Pressed_ASCII =220 or Key_Pressed_ASCII =222 or Key_Pressed_ASCII=16) ; \ or Alt+\  or likaci mod shift 
+  If (Key_Pressed_ASCII =92 or Key_Pressed_ASCII =220 or Key_Pressed_ASCII =222) ; \ or Alt+\
     {
     If ( A_TickCount - Time_Since_Last_Alt_Close < 200 ) ; prevention of accidentally closing too many windows
       Return
@@ -1804,13 +1900,15 @@ ListView_Destroy:
     If wid_MinMax =-1 ;minimised
       WinRestore, ahk_id %wid%
     If hw_popup
-      WinActivate, ahk_id %hw_popup%
-    Else
-      WinActivate, ahk_id %wid%
+      wid:=hw_popup
+    ; DllCall("SetForegroundWindow", UInt, hw_popup) 
+    WinSet, Top, , ahk_id %Gui_wid%
+    WinActivate, ahk_id %wid%
     }
   Else If Alt_Esc =1 ; WM_ACTIVATE - clicked outside alt-tab gui 1
     WinActivate, ahk_id %Active_ID%
   Gui, 1: Destroy ; destroy after switching to avoid re-activation of some windows
+  Gui, 4: Destroy ; destroy after switching to avoid re-activation of some windows
   LV_ColorChange() ; clear all highlighting
   OnTop_Found = ; reset
   Status_Found = ; reset
@@ -1875,7 +1973,6 @@ Return
   Gui, 1: Default
 Return
 
-
 IniFile_Data(Read_or_Write)
 {
   Global
@@ -1894,7 +1991,7 @@ IniFile_Data(Read_or_Write)
   IniFile("Sort_Direction_Symbol",    "Sort_Order", "[+]") ; initial sort direction
 
 ; Groups + Group_Hotkey - remember lists of windows
-  IniFile("Group_List",               "Groups", "Settings|ALL")
+  IniFile("Group_List",               "Groups", "Settings|ALL|EXE")
   If ! (Global_Include_Edit or Global_Exclude_Edit)
   IniFile("Global_Include",           "Groups", "")
   IniFile("Global_Include",           "Groups", "")
@@ -1906,7 +2003,7 @@ IniFile_Data(Read_or_Write)
     If %A_LoopField%_Group_Hotkey
       {
       Hotkey_temp := A_LoopField . "_Group_Hotkey"
-      Hotkey, % %Hotkey_temp%, Group_Hotkey, On
+      Hotkey, % %Hotkey_temp%, Group_Hotkey, On, T5
       }
     }
 }
@@ -1917,12 +2014,12 @@ IniFile(Var, Section, Default="")
   Global
   If IniFile_Read_or_Write =Read
     {
-    IniRead, %Var%, Alt_Tab_Settings.ini, %Section%, %Var%, %Default%
+    IniRead, %Var%, %A_ScriptDir%\Alt_Tab_Settings.ini, %Section%, %Var%, %Default%
     If %Var% =ERROR
       %Var% = ; set to blank value instead of "error"
     }
-  ;Else If IniFile_Read_or_Write =Write
-  ;  IniWrite, % %Var%, Alt_Tab_Settings.ini, %Section%, %Var%
+  Else If IniFile_Read_or_Write =Write
+    IniWrite, % %Var%, %A_ScriptDir%\Alt_Tab_Settings.ini, %Section%, %Var%
 }
 
 
@@ -2168,7 +2265,7 @@ Delete_Ini_File_Settings:
   MsgBox, 1, ALT-TAB REPLACEMENT, Delete Settings (.ini) and load defaults?
   IfMsgbox, Cancel
     Return
-  FileDelete, Alt_Tab_Settings.ini
+  FileDelete, %A_ScriptDir%\Alt_Tab_Settings.ini
   IniFile_Data("Read") ; load defaults
 Return
 
@@ -2190,3 +2287,136 @@ Return
 99GuiEscape:
   Gui, 99: Destroy
 Return
+
+
+
+Gui_CenterX()
+{
+  Global Listview_Width
+    Coordmode, Mouse, Screen
+    MouseGetPos,x,y
+    SysGet, m, MonitorCount
+    ; Iterate through all monitors.
+    Loop, %m%
+    {   ; Check if the window is on this monitor.
+      SysGet, Mon, Monitor, %A_Index%
+        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+        {
+          return (0.5*(MonRight-MonLeft)+MonLeft-Listview_Width/2)
+        }
+    }
+}
+
+; Like GetWindow(hwnd, GW_HWNDPREV), but ignores invisible windows.
+GetPrevWindow(hwnd)
+{
+    global GetPrevWindow_RetVal
+
+    static cb_EnumChildProc
+    if (!cb_EnumChildProc)
+        cb_EnumChildProc := RegisterCallback("GetPrevWindow_EnumChildProc","F")
+
+    ; Set default in case enumeration fails.
+    GetPrevWindow_RetVal := DllCall("GetWindow", "uint", hwnd, "uint", 3)
+   
+    ; Enumerate all siblings of hwnd.
+    hwnd_parent := DllCall("GetParent", "uint", hwnd)
+    DllCall("EnumChildWindows", "uint", hwnd_parent, "uint", cb_EnumChildProc, "uint", hwnd)
+   
+    ; Return the last visible window before hwnd.
+    return GetPrevWindow_RetVal
+}
+GetPrevWindow_EnumChildProc(test_hwnd, hwnd)
+{
+    global GetPrevWindow_RetVal
+    ; Continue until hwnd is enumerated.
+    if (test_hwnd = hwnd)
+        return false
+    ; Remember the last visible window before hwnd.
+    if (DllCall("IsWindowVisible", "uint", test_hwnd))
+    {
+      ; Tooltip % A_Gui . " " . test_hwnd, 0, 0
+      GetPrevWindow_RetVal := test_hwnd
+    }
+    return true
+}
+
+; Gets the index+1 of the taskbar button which the mouse is hovering over.
+; Returns an empty string if the mouse is not over the taskbar's task toolbar.
+; Does not work for Windows 7 / 64-bit
+;
+; Some code and inspiration from Sean's TaskButton.ahk
+
+GetMouseTaskButton(ByRef hwnd)
+{
+    MouseGetPos, x, y, win, ctl, 2
+    ; Check if hovering over taskbar.
+    WinGetClass, cl, ahk_id %win%
+    if (cl != "Shell_TrayWnd")
+        return
+    ; Check if hovering over a Toolbar.
+    WinGetClass, cl, ahk_id %ctl%
+    if (cl != "ToolbarWindow32")
+        return
+    ; Check if hovering over task-switching buttons (specific toolbar).
+    hParent := DllCall("GetParent", "Uint", ctl)
+    WinGetClass, cl, ahk_id %hParent%
+    if (cl != "MSTaskSwWClass")
+        return
+
+   
+    WinGet, pidTaskbar, PID, ahk_class Shell_TrayWnd
+
+    hProc := DllCall("OpenProcess", "Uint", 0x38, "int", 0, "Uint", pidTaskbar)
+    pRB := DllCall("VirtualAllocEx", "Uint", hProc
+        , "Uint", 0, "Uint", 20, "Uint", 0x1000, "Uint", 0x4)
+
+    VarSetCapacity(pt, 8, 0)
+    NumPut(x, pt, 0, "int")
+    NumPut(y, pt, 4, "int")
+   
+    ; Convert screen coords to toolbar-client-area coords.
+    DllCall("ScreenToClient", "uint", ctl, "uint", &pt)
+   
+    ; Write POINT into explorer.exe.
+    DllCall("WriteProcessMemory", "uint", hProc, "uint", pRB+0, "uint", &pt, "uint", 8, "uint", 0)
+
+;     SendMessage, 0x447,,,, ahk_id %ctl%  ; TB_GETHOTITEM
+    SendMessage, 0x445, 0, pRB,, ahk_id %ctl%  ; TB_HITTEST
+    btn_index := ErrorLevel
+    ; Convert btn_index to a signed int, since result may be -1 if no 'hot' item.
+    if btn_index > 0x7FFFFFFF
+        btn_index := -(~btn_index) - 1
+   
+   
+    if (btn_index > -1)
+    {
+        ; Get button info.
+        SendMessage, 0x417, btn_index, pRB,, ahk_id %ctl%   ; TB_GETBUTTON
+   
+        VarSetCapacity(btn, 20)
+        DllCall("ReadProcessMemory", "Uint", hProc
+            , "Uint", pRB, "Uint", &btn, "Uint", 20, "Uint", 0)
+   
+        state := NumGet(btn, 8, "UChar")  ; fsState
+        pdata := NumGet(btn, 12, "UInt")  ; dwData
+       
+        ret := DllCall("ReadProcessMemory", "Uint", hProc
+            , "Uint", pdata, "UintP", hwnd, "Uint", 4, "Uint", 0)
+    } else
+        hwnd = 0
+
+       
+    DllCall("VirtualFreeEx", "Uint", hProc, "Uint", pRB, "Uint", 0, "Uint", 0x8000)
+    DllCall("CloseHandle", "Uint", hProc)
+
+
+    ; Negative values indicate seperator items. (abs(btn_index) is the index)
+    return btn_index > -1 ? btn_index+1 : 0
+}
+
+MouseWID()
+{
+  MouseGetPos, JUNK, JUNK, mouse_wid
+  return mouse_wid
+}
